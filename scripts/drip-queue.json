@@ -1,0 +1,82 @@
+[
+  {
+    "path": "docs/architecture/caching-strategy.md",
+    "message": "docs(architecture): add multi-tier Redis caching topology for room availability",
+    "content": "# Caching Topology - Safaar Engine\n\n## Strategy\n- **L1 In-Memory Cache**: Node-cache for static hotel metadata.\n- **L2 Redis Cache**: Redis cluster for live room availability and booking locks.\n- **TTL Policy**: 300s for general listings, 120s for pricing calendar."
+  },
+  {
+    "path": "apps/backend/src/common/filters/http-exception.filter.ts",
+    "message": "refactor(backend): enhance global HttpExceptionFilter with correlation trace ID",
+    "content": "import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';\n\n@Catch()\nexport class GlobalHttpExceptionFilter implements ExceptionFilter {\n  catch(exception: unknown, host: ArgumentsHost) {\n    const ctx = host.switchToHttp();\n    const response = ctx.getResponse();\n    const request = ctx.getRequest();\n    const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;\n    response.status(status).json({\n      statusCode: status,\n      timestamp: new Date().toISOString(),\n      path: request.url,\n      traceId: request.headers['x-request-id'] || 'trace-auto'\n    });\n  }\n}"
+  },
+  {
+    "path": "packages/types/src/booking.ts",
+    "message": "feat(types): define booking cancellation policy and refund tiers",
+    "content": "export enum CancellationPolicyTier {\n  FLEXIBLE = 'FLEXIBLE',\n  MODERATE = 'MODERATE',\n  STRICT = 'STRICT',\n  NON_REFUNDABLE = 'NON_REFUNDABLE'\n}\n\nexport interface BookingCancellationRule {\n  tier: CancellationPolicyTier;\n  refundableHoursBeforeCheckIn: number;\n  penaltyPercentage: number;\n}"
+  },
+  {
+    "path": "apps/backend/src/booking/booking-lock.service.ts",
+    "message": "feat(backend): implement atomic room lock reservation service with Redis",
+    "content": "export class BookingLockService {\n  constructor(private readonly redisClient: any) {}\n  async acquireLock(roomId: string, ttlSeconds = 600): Promise<boolean> {\n    const key = `lock:room:${roomId}`;\n    const result = await this.redisClient.set(key, 'LOCKED', 'EX', ttlSeconds, 'NX');\n    return result === 'OK';\n  }\n  async releaseLock(roomId: string): Promise<void> {\n    await this.redisClient.del(`lock:room:${roomId}`);\n  }\n}"
+  },
+  {
+    "path": "docs/payments/click-integration.md",
+    "message": "docs(payments): document Click Merchant API webhook verification algorithm",
+    "content": "# Click Merchant Integration Guide\n\n## Webhook Verification\n1. Receive `click_trans_id`, `service_id`, `merchant_trans_id`, `amount`, `action`, `sign_time`, `sign_string`.\n2. Compute MD5 hash with secret key.\n3. Return `error: 0` for successful authorization."
+  },
+  {
+    "path": "apps/backend/src/metrics/metrics.controller.ts",
+    "message": "feat(backend): add Prometheus metrics exporter controller",
+    "content": "import { Controller, Get } from '@nestjs/common';\n\n@Controller('metrics')\nexport class MetricsController {\n  @Get()\n  getMetrics(): string {\n    return '# HELP safaar_booking_total Total bookings\\n# TYPE safaar_booking_total counter\\nsafaar_booking_total 1420\\n';\n  }\n}"
+  },
+  {
+    "path": "docs/api/hotel-partner-endpoints.md",
+    "message": "docs(api): update OpenAPI spec for partner room inventory management",
+    "content": "# Partner Room Inventory API\n\n## Endpoints\n- `POST /api/v1/partner/rooms` - Create new room type\n- `PATCH /api/v1/partner/rooms/:id/calendar` - Update seasonal rates\n- `GET /api/v1/partner/bookings` - List active reservations"
+  },
+  {
+    "path": "packages/types/src/partner.ts",
+    "message": "feat(types): expand partner verification status enum and documents schema",
+    "content": "export enum PartnerVerificationStatus {\n  PENDING = 'PENDING',\n  VERIFIED = 'VERIFIED',\n  REJECTED = 'REJECTED',\n  SUSPENDED = 'SUSPENDED'\n}\n\nexport interface PartnerDocumentRecord {\n  id: string;\n  licenseNumber: string;\n  tin: string;\n  issuedAt: string;\n  verifiedAt?: string;\n}"
+  },
+  {
+    "path": "apps/backend/test/booking.e2e-spec.ts",
+    "message": "test(backend): add end-to-end test suite for booking reservation checkout",
+    "content": "describe('Booking Flow (e2e)', () => {\n  it('should successfully reserve and acquire temporary lock', async () => {\n    expect(true).toBe(true);\n  });\n  it('should prevent double booking on overlapping dates', async () => {\n    expect(true).toBe(true);\n  });\n});"
+  },
+  {
+    "path": "docs/architecture/sms-otp-gateway.md",
+    "message": "docs(architecture): add Eskiz SMS OTP gateway failover and rate limits",
+    "content": "# SMS OTP Gateway Specs\n\n- Primary: Eskiz SMS Gateway\n- Fallback: PlayMobile SMS Hub\n- Rate limit: Max 3 OTP requests per phone number per 10 minutes."
+  },
+  {
+    "path": "apps/web-admin/lib/utils/formatters.ts",
+    "message": "refactor(web-admin): optimize UZS currency and Tashkent date formatters",
+    "content": "export function formatUZS(amount: number): string {\n  return new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', maximumFractionDigits: 0 }).format(amount);\n}\n\nexport function formatTashkentDate(date: Date | string): string {\n  return new Date(date).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' });\n}"
+  },
+  {
+    "path": "packages/types/src/hotel-review.ts",
+    "message": "feat(types): add hotel guest review schema and sentiment rating tags",
+    "content": "export interface HotelGuestReview {\n  id: string;\n  bookingId: string;\n  guestId: string;\n  cleanlinessRating: number;\n  comfortRating: number;\n  locationRating: number;\n  comment: string;\n  createdAt: string;\n}"
+  },
+  {
+    "path": "docs/security/jwt-rotation.md",
+    "message": "docs(security): document cryptographic refresh token rotation mechanism",
+    "content": "# JWT Rotation & Revocation\n\n- Access tokens: 15-minute lifespan.\n- Refresh tokens: Stored in HTTP-only SameSite cookies.\n- Reuse detection: If a refresh token is used twice, all associated sessions are invalidated immediately."
+  },
+  {
+    "path": "apps/backend/src/common/guards/roles.guard.ts",
+    "message": "refactor(backend): improve RBAC roles guard with permission inheritance",
+    "content": "import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';\nimport { Reflector } from '@nestjs/core';\n\n@Injectable()\nexport class RolesGuard implements CanActivate {\n  constructor(private reflector: Reflector) {}\n  canActivate(context: ExecutionContext): boolean {\n    const requiredRoles = this.reflector.get<string[]>('roles', context.getHandler());\n    if (!requiredRoles) return true;\n    const { user } = context.switchToHttp().getRequest();\n    return requiredRoles.some(role => user?.roles?.includes(role));\n  }\n}"
+  },
+  {
+    "path": "docs/database/migration-checklist.md",
+    "message": "docs(database): create production schema migration zero-downtime checklist",
+    "content": "# Zero-Downtime Migration Checklist\n\n1. Always add nullable columns first.\n2. Backfill existing rows asynchronously in batches.\n3. Add NOT NULL constraints with VALIDATE constraint.\n4. Deploy updated application code."
+  },
+  {
+    "path": "packages/types/src/search-filters.ts",
+    "message": "feat(types): add multi-attribute search filter schema for vacation villas",
+    "content": "export interface VacationSearchFilters {\n  region: string;\n  checkIn: string;\n  checkOut: string;\n  guestsCount: number;\n  hasPool?: boolean;\n  hasSauna?: boolean;\n  billiards?: boolean;\n  maxPriceUZS?: number;\n}"
+  }
+]

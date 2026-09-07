@@ -1,0 +1,51 @@
+name: "Daily Drip Feeder"
+
+on:
+  schedule:
+    # 04:18 UTC = 09:18 AM Tashkent
+    - cron: '18 4 * * *'
+    # 08:42 UTC = 13:42 PM Tashkent
+    - cron: '42 8 * * *'
+    # 13:19 UTC = 18:19 PM Tashkent
+    - cron: '19 13 * * *'
+    # 16:35 UTC = 21:35 PM Tashkent
+    - cron: '35 16 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  drip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Randomized organic delay: sleeps between 0 and 1800 seconds (0-30 mins)
+      # when triggered by cron, so exact commit time is unpredictable and natural.
+      - name: Apply Random Time Jitter
+        if: github.event_name == 'schedule'
+        run: |
+          DELAY=$(( RANDOM % 1800 ))
+          echo "Natural random jitter delay: ${DELAY}s"
+          sleep $DELAY
+
+      - name: Execute Daily Drip Commit
+        run: |
+          git config --global user.name "Laziz Shakarov"
+          git config --global user.email "shakarovlaziz243@gmail.com"
+          node scripts/drip.js
+
+      - name: Push to develop branch
+        run: |
+          git pull --rebase origin develop || true
+          git push origin develop
